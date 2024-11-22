@@ -2,3 +2,4 @@ spaceone-api
 docker
 kubernetes
 hashids
+requests

@@ -22,6 +22,7 @@ from spaceone.core import config
 from spaceone.core.manager import BaseManager
 from spaceone.core.connector.space_connector import SpaceConnector
 
+from spaceone.supervisor.connector.cpln_connector import CplnConnector
 from spaceone.supervisor.connector.kubernetes_connector import KubernetesConnector
 from spaceone.supervisor.connector.docker_connector import DockerConnector
 
@@ -36,6 +37,7 @@ class SupervisorManager(BaseManager):
         connectors_conf = config.get_global("CONNECTORS")
         plugin_conf = connectors_conf[self.backend]
         self.port_range = (plugin_conf["start_port"], plugin_conf["end_port"])
+        self.gvc = plugin_conf.get("gvc", "")
 
     def install_plugin(self, image_uri, labels, ports, name, registry_config):
         """Install Plugin"""
@@ -83,7 +85,7 @@ class SupervisorManager(BaseManager):
         try:
             # connector = self.locator.get_connector(self.backend, self.plugin_conf)
             connector: Union[
-                KubernetesConnector, DockerConnector
+                KubernetesConnector, DockerConnector, CplnConnector
             ] = self.locator.get_connector(self.backend)
             data: dict = connector.search(filters=filters)
             return data
@@ -130,6 +132,9 @@ class SupervisorManager(BaseManager):
             endpoint = f"grpc://{hostname}:{host_port}"
         elif self.backend == "KubernetesConnector":
             endpoint = f"grpc://{name}.{hostname}:{host_port}"
+        elif self.backend == "CplnConnector":
+            endpoint = f"grpc://{name[:49]}.{self.gvc}.cpln.local:{host_port}"
         else:
+            endpoint = ""
             _LOGGER.error(f"[get_plugin_endpoint] undefined backend: {self.backend}")
         return endpoint

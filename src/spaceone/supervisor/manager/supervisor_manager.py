@@ -22,6 +22,7 @@ from spaceone.core import config
 from spaceone.core.manager import BaseManager
 from spaceone.core.connector.space_connector import SpaceConnector
 
+from spaceone.supervisor.connector import CplnConnector
 from spaceone.supervisor.connector.kubernetes_connector import KubernetesConnector
 from spaceone.supervisor.connector.docker_connector import DockerConnector
 
@@ -83,7 +84,7 @@ class SupervisorManager(BaseManager):
         try:
             # connector = self.locator.get_connector(self.backend, self.plugin_conf)
             connector: Union[
-                KubernetesConnector, DockerConnector
+                KubernetesConnector, DockerConnector, CplnConnector
             ] = self.locator.get_connector(self.backend)
             data: dict = connector.search(filters=filters)
             return data
@@ -130,6 +131,8 @@ class SupervisorManager(BaseManager):
             endpoint = f"grpc://{hostname}:{host_port}"
         elif self.backend == "KubernetesConnector":
             endpoint = f"grpc://{name}.{hostname}:{host_port}"
+        elif self.backend == "CplnConnector":
+            endpoint = f"grpc://{hostname}:{host_port}"
         else:
             _LOGGER.error(f"[get_plugin_endpoint] undefined backend: {self.backend}")
         return endpoint

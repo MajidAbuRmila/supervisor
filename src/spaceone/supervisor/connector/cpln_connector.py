@@ -16,6 +16,8 @@
 __all__ = ["CplnConnector"]
 
 import logging
+import os
+
 import requests
 
 from spaceone.core.error import ERROR_CONFIGURATION
@@ -45,9 +47,9 @@ class CplnConnector(ContainerConnector):
         _LOGGER.debug(f'[CplnConnector] config: {self.config}')
 
         # Extracting required parameters from the configuration
-        self.token = self.config['token']
-        self.org = self.config['org']
-        self.gvc = self.config['gvc']
+        self.token = self.config.get('token', os.getenv('CPLN_TOKEN'))
+        self.org = self.config.get('org', os.getenv('CPLN_ORG'))
+        self.gvc = self.config.get('gvc', os.getenv('CPLN_GVC'))
 
         # Verifying authorization by ensuring the org and GVC exist
         self._verify_authorization()

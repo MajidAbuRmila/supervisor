@@ -44,7 +44,7 @@ class CplnConnector(ContainerConnector):
         super().__init__(*args, **kwargs)
 
         # Logging the configuration for debugging purposes
-        _LOGGER.debug(f'[CplnConnector] config: {self.config}')
+        _LOGGER.debug(f'[CplnConnector] config: {self.sanitize_config(self.config)}')
 
         # Extracting required parameters from the configuration
         self.token = self.config.get('token', os.getenv('CPLN_TOKEN'))
@@ -475,3 +475,24 @@ class CplnConnector(ContainerConnector):
 
         # If all labels exist in tags with matching key-value pairs, return True
         return True
+
+    @staticmethod
+    def sanitize_config(config: dict) -> dict:
+        """
+        Redacts sensitive keys in a configuration dictionary, such as 'token',
+        while leaving the rest of the dictionary intact.
+
+        :param config: Dictionary containing configuration data.
+        :return: A sanitized copy of the configuration dictionary with sensitive
+                 keys redacted.
+        """
+        # Create a shallow copy of the dictionary to avoid modifying the original
+        sanitized = config.copy()
+
+        # Check if the 'token' key exists in the dictionary
+        if 'token' in sanitized:
+            # Redact the value of the 'token' key to prevent it from being logged
+            sanitized['token'] = '***'
+
+        # Return the sanitized copy of the configuration
+        return sanitized

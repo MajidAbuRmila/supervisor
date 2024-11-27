@@ -28,7 +28,8 @@ _LOGGER = logging.getLogger(__name__)
 
 # Defining constants
 HTTP_REQUEST_TIMEOUT = 30
-BASE_URL = "https://api.cpln.io"
+DEFAULT_BASE_URL = 'https://api.cpln.io'
+BASE_URL =  os.getenv('CPLN_ENDPOINT', DEFAULT_BASE_URL) or DEFAULT_BASE_URL
 
 class CplnConnector(ContainerConnector):
     def __init__(self, *args, **kwargs):
@@ -130,6 +131,8 @@ class CplnConnector(ContainerConnector):
 
         :raises ERROR_CONFIGURATION: If the organization or GVC cannot be verified
         """
+        _LOGGER.debug(f'[CplnConnector] inside _verify_authorization')
+
         try:
             # Verify organization existence via GET request
             self._get_resource(f"/org/{self.org}")
@@ -138,6 +141,10 @@ class CplnConnector(ContainerConnector):
                 error_message = f"Organization '{self.org}' does not exist."
             else:
                 error_message = f"Authorization failed: {str(e)}"
+            _LOGGER.error(f"[_verify_authorization] {error_message}")
+            raise ERROR_CONFIGURATION(error_message)
+        except Exception as e:
+            error_message = f"Failed to verify Org: {str(e)}"
             _LOGGER.error(f"[_verify_authorization] {error_message}")
             raise ERROR_CONFIGURATION(error_message)
 
@@ -149,6 +156,10 @@ class CplnConnector(ContainerConnector):
                 error_message = f"GVC '{self.gvc}' does not exist."
             else:
                 error_message = f"Authorization failed: {str(e)}"
+            _LOGGER.error(f"[_verify_authorization] {error_message}")
+            raise ERROR_CONFIGURATION(error_message)
+        except Exception as e:
+            error_message = f"Failed to verify GVC: {str(e)}"
             _LOGGER.error(f"[_verify_authorization] {error_message}")
             raise ERROR_CONFIGURATION(error_message)
 

@@ -22,7 +22,7 @@ from spaceone.core import config
 from spaceone.core.manager import BaseManager
 from spaceone.core.connector.space_connector import SpaceConnector
 
-from spaceone.supervisor.connector import CplnConnector
+from spaceone.supervisor.connector.cpln_connector import CplnConnector
 from spaceone.supervisor.connector.kubernetes_connector import KubernetesConnector
 from spaceone.supervisor.connector.docker_connector import DockerConnector
 

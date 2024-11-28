@@ -245,7 +245,7 @@ class CplnConnector(ContainerConnector):
                 ],
                 "firewallConfig": {
                     "external": {
-                      "inboundAllowCIDR": ['0.0.0.0/0'],
+                      "outboundAllowCIDR": ['0.0.0.0/0'],
                     },
                     "internal": {
                         "inboundAllowType": "same-gvc"

@@ -17,6 +17,7 @@ __all__ = ["CplnConnector"]
 
 import logging
 import os
+import time
 
 import requests
 
@@ -27,6 +28,8 @@ from spaceone.supervisor.connector.container_connector import ContainerConnector
 _LOGGER = logging.getLogger(__name__)
 
 # Defining constants
+BASE_DELAY = 1
+MAX_RETRIES = 5
 HTTP_REQUEST_TIMEOUT = 30
 DEFAULT_BASE_URL = 'https://api.cpln.io'
 BASE_URL =  os.getenv('CPLN_ENDPOINT', DEFAULT_BASE_URL) or DEFAULT_BASE_URL
@@ -358,19 +361,10 @@ class CplnConnector(ContainerConnector):
         """
         _LOGGER.debug(f"[_get_resource] making GET request to {path}")
 
-        # Construct the full URL
-        url = f"{BASE_URL}{path}"
+        # Make the GET request to the given path using the centralized retry logic
+        response = self._make_request_with_retry("get", path)
 
-        # Set up headers for authentication and content type
-        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
-
-        # Send the GET request
-        response = requests.get(url, headers=headers, timeout=HTTP_REQUEST_TIMEOUT)
-
-        # Raise an exception if the response indicates an error
-        response.raise_for_status()
-
-        # Return the JSON payload of the response
+        # Parse the response as JSON and return it to the caller
         return response.json()
 
     def _post_resource(self, path: str, body: dict):
@@ -382,17 +376,8 @@ class CplnConnector(ContainerConnector):
         """
         _LOGGER.debug(f"[_post_resource] making POST request to {path}")
 
-        # Construct the full URL
-        url = f"{BASE_URL}{path}"
-
-        # Set up headers for authentication and content type
-        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
-
-        # Send the POST request with the provided body
-        response = requests.post(url, headers=headers, json=body, timeout=HTTP_REQUEST_TIMEOUT)
-
-        # Raise an exception if the response indicates an error
-        response.raise_for_status()
+        # Make the POST request to the given path using the centralized retry logic
+        self._make_request_with_retry("post", path, json=body)
 
     def _delete_resource(self, path: str):
         """
@@ -402,17 +387,66 @@ class CplnConnector(ContainerConnector):
         """
         _LOGGER.debug(f"[_delete_resource] making DELETE request to {path}")
 
-        # Construct the full URL
+        # Make the DELETE request to the given path using the centralized retry logic
+        self._make_request_with_retry("delete", path)
+
+    def _make_request_with_retry(self, method, path, **kwargs):
+        """
+        Centralized retry logic for HTTP requests.
+
+        :param method: The HTTP method to use (e.g., 'get', 'post', 'delete').
+        :param path: The API path to make the request to.
+        :param kwargs: Additional keyword arguments to pass to the `requests.request` method.
+        :return: The `requests.Response` object if the request succeeds.
+        :raises Exception: If all retry attempts fail or if a non-429 error occurs.
+        """
+        # Initialize the retry count to track the number of attempts
+        retry_count = 0
+
+        # Construct the full URL by combining the base URL and the given path
         url = f"{BASE_URL}{path}"
 
-        # Set up headers for authentication and content type
+        # Create headers for the request, including the authorization token and content type
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
 
-        # Send the DELETE request
-        response = requests.delete(url, headers=headers, timeout=HTTP_REQUEST_TIMEOUT)
+        # Ensure that the headers are included in the keyword arguments
+        kwargs["headers"] = headers
 
-        # Raise an exception if the response indicates an error
-        response.raise_for_status()
+        # Start the retry loop; it will run until the retry limit is reached
+        while retry_count <= MAX_RETRIES:
+            # Log retries, but not the first attempt
+            if retry_count > 0:
+                _LOGGER.debug(f"[_make_request_with_retry] {method.upper()} request to {url}, Retry {retry_count}")
+
+            # Perform the HTTP request using the `requests.request` method
+            response = requests.request(method, url, timeout=HTTP_REQUEST_TIMEOUT, **kwargs)
+
+            # If the response status code is not 429, handle it as a normal response
+            if response.status_code != 429:
+                # If the response is not successful (status codes >= 400), raise an exception
+                if not response.ok:
+                    raise Exception(f"HTTP {response.status_code} (URL: {url}) Error: {response.text}")
+
+                # Return the response object for successful requests
+                return response
+
+            # If the response status code is 429, log a warning and prepare to retry
+            _LOGGER.warning(f"[_make_request_with_retry] Received 429 for {method.upper()} {url}, retrying...")
+
+            # Increment the retry count for the next attempt
+            retry_count += 1
+
+            # Calculate the delay using exponential backoff: BASE_DELAY * 2^retry_count
+            delay = BASE_DELAY * (2 ** retry_count)
+
+            # Log the delay to keep track of wait times between retries
+            _LOGGER.debug(f"Retry {retry_count}: Waiting for {delay} seconds before retrying request...")
+
+            # Pause execution for the calculated delay time before retrying
+            time.sleep(delay)
+
+        # If all retries are exhausted, raise an exception indicating the failure
+        raise Exception(f"Failed after {MAX_RETRIES} retries for {method.upper()} {url}")
 
     ### Static Methods ###
 

@@ -498,13 +498,13 @@ class CplnConnector(ContainerConnector):
             if k == "spaceone.supervisor.name":
                 tags["supervisor_name"] = v
             elif k == "spaceone.supervisor.domain_id":
-                tags["domain_id"] = v
+                tags["spaceone.supervisor.domain_id"] = v
             elif k == "spaceone.supervisor.plugin_id":
-                tags["plugin_id"] = v
+                tags["spaceone.supervisor.plugin_id"] = v
             elif k == "spaceone.supervisor.plugin.version":
-                tags["version"] = v
+                tags["spaceone.supervisor.version"] = v
             elif k == "spaceone.supervisor.plugin.resource_type":
-                tags["resource_type"] = v
+                tags["spaceone.supervisor.resource_type"] = v
 
         return tags
 

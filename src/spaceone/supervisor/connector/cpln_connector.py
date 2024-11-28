@@ -166,7 +166,7 @@ class CplnConnector(ContainerConnector):
             _LOGGER.error(f"[_verify_authorization] {error_message}")
             raise ERROR_CONFIGURATION(key=error_message)
 
-    def _fetch_workloads_by_label(self, label: str) -> list:
+    def _fetch_workloads_by_label(self, label: [list, str]) -> list:
         """
         Fetches workloads filtered by a specific label.
 
@@ -495,16 +495,7 @@ class CplnConnector(ContainerConnector):
 
         # Map specific label keys to tag keys for API compatibility
         for k, v in labels.items():
-            if k == "spaceone.supervisor.name":
-                tags["supervisor_name"] = v
-            elif k == "spaceone.supervisor.domain_id":
-                tags["spaceone.supervisor.domain_id"] = v
-            elif k == "spaceone.supervisor.plugin_id":
-                tags["spaceone.supervisor.plugin_id"] = v
-            elif k == "spaceone.supervisor.plugin.version":
-                tags["spaceone.supervisor.version"] = v
-            elif k == "spaceone.supervisor.plugin.resource_type":
-                tags["spaceone.supervisor.resource_type"] = v
+            tags[k] = v
 
         return tags
 
@@ -518,7 +509,10 @@ class CplnConnector(ContainerConnector):
         :return: True if all labels exist in tags, otherwise False
         """
         # If the labels list is empty or None, immediately return False as no labels exist to check
+        _LOGGER.debug(f"[_label_exists_in_tags] labels: {labels}")
+
         if not labels:
+            _LOGGER.debug(f"[_label_exists_in_tags] No labels provided.")
             return False
 
         # Iterate through each label in the labels list
@@ -528,6 +522,7 @@ class CplnConnector(ContainerConnector):
 
             # Check if the key exists in the tags dictionary and if its value matches the expected value
             if k not in tags or tags[k] != v:
+                _LOGGER.debug(f"[_label_exists_in_tags] label: '{label}' was not found in tags: '{tags}'.")
                 return False
 
         # If all labels exist in tags with matching key-value pairs, return True

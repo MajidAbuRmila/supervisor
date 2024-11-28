@@ -430,7 +430,7 @@ class CplnConnector(ContainerConnector):
                 return response
 
             # If the response status code is 429, log a warning and prepare to retry
-            _LOGGER.warning(f"[_make_request_with_retry] Received 429 for {method.upper()} {url}, retrying...")
+            _LOGGER.warning(f"[_make_request_with_retry] Received 429 for {method.upper()} {url} Error: {response.text}, retrying...")
 
             # Increment the retry count for the next attempt
             retry_count += 1

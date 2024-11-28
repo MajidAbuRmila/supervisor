@@ -21,7 +21,7 @@ import time
 
 import requests
 
-from spaceone.core.error import ERROR_CONFIGURATION
+from spaceone.core.error import ERROR_CONFIGURATION, ERROR_AUTHENTICATE_FAILURE
 from spaceone.supervisor.connector.container_connector import ContainerConnector
 
 # Configuring a logger for this module
@@ -42,7 +42,7 @@ class CplnConnector(ContainerConnector):
         :param token: Bearer token for authentication
         :param org: Organization name
         :param gvc: Global Virtual Cloud name
-        :raises ERROR_CONFIGURATION: If authorization or GVC verification fails
+        :raises ERROR_AUTHENTICATE_FAILURE: If authorization or GVC verification fails
         """
 
         super().__init__(*args, **kwargs)
@@ -93,7 +93,7 @@ class CplnConnector(ContainerConnector):
         :param ports: Port mapping dictionary (e.g., {"TargetPort": 8080})
         :param name: Name of the workload
         :return: Plugin information extracted from the workload
-        :raises ERROR_CONFIGURATION: If the workload creation or retrieval fails
+        :raises Exception: If the workload creation or retrieval fails
         """
         try:
             # Attempt to retrieve or create the workload
@@ -104,7 +104,7 @@ class CplnConnector(ContainerConnector):
         except Exception as e:
             error_message = f"Failed to run workload '{name}': {str(e)}"
             _LOGGER.error(f"[run] {error_message}")
-            raise ERROR_CONFIGURATION(key=error_message)
+            raise e
 
     def stop(self, plugin: dict) -> bool:
         """
@@ -112,7 +112,7 @@ class CplnConnector(ContainerConnector):
 
         :param plugin: Plugin dictionary containing the workload's information
         :return: True if the workload was successfully stopped
-        :raises ERROR_CONFIGURATION: If stopping the workload fails
+        :raises Exception: If stopping the workload fails
         """
         # Extract the plugin name from the plugin dictionary
         plugin_name = plugin.get("name", "Unknown Plugin Name")
@@ -124,7 +124,7 @@ class CplnConnector(ContainerConnector):
         except Exception as e:
             error_message = f"Failed to stop workload '{plugin_name}': {str(e)}"
             _LOGGER.error(f"[stop] {error_message}")
-            raise ERROR_CONFIGURATION(key=error_message)
+            raise e
 
     ### Protected Methods ###
 
@@ -132,7 +132,7 @@ class CplnConnector(ContainerConnector):
         """
         Verifies if the organization and GVC exist and are accessible.
 
-        :raises ERROR_CONFIGURATION: If the organization or GVC cannot be verified
+        :raises ERROR_AUTHENTICATE_FAILURE: If the organization or GVC cannot be verified
         """
         _LOGGER.debug(f'[CplnConnector] inside _verify_authorization')
 
@@ -145,11 +145,11 @@ class CplnConnector(ContainerConnector):
             else:
                 error_message = f"Authorization failed: {str(e.response.text)}"
             _LOGGER.error(f"[_verify_authorization] {error_message}")
-            raise ERROR_CONFIGURATION(key=error_message)
+            raise ERROR_AUTHENTICATE_FAILURE(message=error_message)
         except Exception as e:
             error_message = f"Failed to verify Org: {str(e)}"
             _LOGGER.error(f"[_verify_authorization] {error_message}")
-            raise ERROR_CONFIGURATION(key=error_message)
+            raise ERROR_AUTHENTICATE_FAILURE(message=error_message)
 
         try:
             # Verify GVC existence via GET request
@@ -160,11 +160,11 @@ class CplnConnector(ContainerConnector):
             else:
                 error_message = f"Authorization failed: {str(e.response.text)}"
             _LOGGER.error(f"[_verify_authorization] {error_message}")
-            raise ERROR_CONFIGURATION(key=error_message)
+            raise ERROR_AUTHENTICATE_FAILURE(message=error_message)
         except Exception as e:
             error_message = f"Failed to verify GVC: {str(e)}"
             _LOGGER.error(f"[_verify_authorization] {error_message}")
-            raise ERROR_CONFIGURATION(key=error_message)
+            raise ERROR_AUTHENTICATE_FAILURE(message=error_message)
 
     def _fetch_workloads_by_label(self, label: [list, str]) -> list:
         """
@@ -182,7 +182,7 @@ class CplnConnector(ContainerConnector):
         except requests.exceptions.RequestException as e:
             error_message = f"Failed to fetch workloads: {e}"
             _LOGGER.error(f"[_fetch_workloads_by_label] {error_message}")
-            raise ERROR_CONFIGURATION(key=error_message)
+            raise e
 
         # Ensure labels is a list, even if a single string is provided
         labels = [label] if isinstance(label, str) else label
@@ -203,7 +203,7 @@ class CplnConnector(ContainerConnector):
         :param ports: Port mapping dictionary
         :param name: Name of the workload
         :return: The workload dictionary
-        :raises ERROR_CONFIGURATION: If the workload creation or retrieval fails
+        :raises HTTPError: If the workload creation or retrieval fails
         """
         try:
             # Attempt to retrieve the workload by its name
@@ -212,7 +212,7 @@ class CplnConnector(ContainerConnector):
             if e.response.status_code != 404:
                 error_message = f"Failed to retrieve workload '{name}': {str(e.response.text)}, attempting to create..."
                 _LOGGER.error(f"[_get_or_create_workload] {error_message}")
-                raise ERROR_CONFIGURATION(key=error_message)
+                raise e
 
         # If workload doesn't exist, create a new one
         return self._create_workload(image, labels, ports, name)
@@ -226,7 +226,7 @@ class CplnConnector(ContainerConnector):
         :param ports: Port mapping dictionary
         :param name: Name of the workload
         :return: The newly created workload
-        :raises ERROR_CONFIGURATION: If the workload creation fails
+        :raises Exception: If the workload creation fails
         """
         # Define the workload structure to be sent to the API
         new_workload = {
@@ -262,7 +262,7 @@ class CplnConnector(ContainerConnector):
         except Exception as e:
             error_message = f"Failed to create workload '{name}': {str(e)}"
             _LOGGER.error(f"[_create_workload] {error_message}")
-            raise ERROR_CONFIGURATION(key=error_message)
+            raise e
 
     def _extract_plugin_info(self, workload: dict) -> dict:
         """
@@ -309,7 +309,7 @@ class CplnConnector(ContainerConnector):
         except requests.exceptions.RequestException as e:
             error_message = f"Failed to fetch workloads: {e}"
             _LOGGER.error(f"[_determine_workload_status] {error_message}")
-            raise ERROR_CONFIGURATION(key=error_message)
+            raise e
 
         # If no deployments exist, the workload is not active
         if len(deployments) < 1:
@@ -348,7 +348,7 @@ class CplnConnector(ContainerConnector):
             return "ACTIVE"
 
         # Determine the final status based on readiness
-        return "ACTIVE" if latest_ready >= total_locations else "NOT ACTIVE"
+        return "ACTIVE" if latest_ready >= total_locations else "PROVISIONING"
 
     ## API Request Helpers
 
@@ -399,6 +399,7 @@ class CplnConnector(ContainerConnector):
         :param kwargs: Additional keyword arguments to pass to the `requests.request` method.
         :return: The `requests.Response` object if the request succeeds.
         :raises Exception: If all retry attempts fail or if a non-429 error occurs.
+        :raises HTTPError: If status code is >= 400.
         """
         # Initialize the retry count to track the number of attempts
         retry_count = 0
@@ -456,16 +457,20 @@ class CplnConnector(ContainerConnector):
 
         :param image: Docker image string
         :return: Extracted container name
-        :raises ValueError: If the image string format is invalid
+        :raises ERROR_CONFIGURATION: If the image string format is invalid
         """
         # Validate that the input is a non-empty string
         if not image or not isinstance(image, str):
-            raise ValueError("Image must be a non-empty string.")
+            error_message = "Image must be a non-empty string."
+            _LOGGER.error(f"[_extract_container_name] {error_message}")
+            raise ERROR_CONFIGURATION(key=error_message)
 
         # Split the image string by '/' and extract the last segment
         segments = image.split("/")
         if not segments:
-            raise ValueError(f"Invalid image format: '{image}'")
+            error_message = "Invalid image format: '{image}'."
+            _LOGGER.error(f"[_extract_container_name] {error_message}")
+            raise ERROR_CONFIGURATION(key=error_message)
 
         # Extract the last segment and split it by ':' to remove the tag (if any)
         name_with_tag = segments[-1]

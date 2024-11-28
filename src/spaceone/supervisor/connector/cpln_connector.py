@@ -143,7 +143,7 @@ class CplnConnector(ContainerConnector):
             if e.response.status_code == 404:
                 error_message = f"Organization '{self.org}' does not exist."
             else:
-                error_message = f"Authorization failed: {str(e)}"
+                error_message = f"Authorization failed: {str(e.response.text)}"
             _LOGGER.error(f"[_verify_authorization] {error_message}")
             raise ERROR_CONFIGURATION(key=error_message)
         except Exception as e:
@@ -158,7 +158,7 @@ class CplnConnector(ContainerConnector):
             if e.response.status_code == 404:
                 error_message = f"GVC '{self.gvc}' does not exist."
             else:
-                error_message = f"Authorization failed: {str(e)}"
+                error_message = f"Authorization failed: {str(e.response.text)}"
             _LOGGER.error(f"[_verify_authorization] {error_message}")
             raise ERROR_CONFIGURATION(key=error_message)
         except Exception as e:
@@ -210,7 +210,7 @@ class CplnConnector(ContainerConnector):
             return self._get_resource(f"/org/{self.org}/gvc/{self.gvc}/workload/{name}")
         except requests.exceptions.HTTPError as e:
             if e.response.status_code != 404:
-                error_message = f"Failed to retrieve workload '{name}': {str(e)}"
+                error_message = f"Failed to retrieve workload '{name}': {str(e.response.text)}, attempting to create..."
                 _LOGGER.error(f"[_get_or_create_workload] {error_message}")
                 raise ERROR_CONFIGURATION(key=error_message)
 
@@ -424,8 +424,7 @@ class CplnConnector(ContainerConnector):
             # If the response status code is not 429, handle it as a normal response
             if response.status_code != 429:
                 # If the response is not successful (status codes >= 400), raise an exception
-                if not response.ok:
-                    raise Exception(f"HTTP {response.status_code} (URL: {url}) Error: {response.text}")
+                response.raise_for_status()
 
                 # Return the response object for successful requests
                 return response
